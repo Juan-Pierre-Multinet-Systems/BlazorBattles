@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -48,6 +49,42 @@ namespace BlazorBattles.Server.Controllers
             await _context.SaveChangesAsync();
 
             return Ok(newUserUnit);
+        }
+
+        [HttpPost("revive")]
+        public async Task<IActionResult> ReviveArmy()
+        {
+            var user = await _utilityService.GetUser();
+            var userUnits = await _context.UserUnits
+                .Where(unit => unit.UserId == user.Id)
+                .Include(unit => unit.Unit)
+                .ToListAsync();
+
+            int bananaCost = 1000;
+
+            if (user.Bananas < bananaCost)
+            {
+                return BadRequest("Not enough bananas! You need 1000 bananas to revive your army.");
+            }
+
+            bool armyAlreadyAlive = true;
+            foreach (var userUnit in userUnits)
+            {
+                if (userUnit.HitPoints <= 0)
+                {
+                    armyAlreadyAlive = false;
+                    userUnit.HitPoints = new Random().Next(0, userUnit.Unit.HitPoints);
+                }
+            }
+
+            if (armyAlreadyAlive)
+                return Ok("Your army is still alive");
+
+            user.Bananas -= bananaCost;
+
+            await _context.SaveChangesAsync();
+
+            return Ok("Army has been revived");
         }
 
         [HttpGet]
